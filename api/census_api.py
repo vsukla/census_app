@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Census API configuration
-CENSUS_API_KEY = os.getenv('CENSUS_API_KEY')
+CENSUS_API_KEY = os.getenv('CENSUS_API_KEY', '').strip()
 CENSUS_API_BASE_URL = 'https://api.census.gov/data/2020/acs/acs5'
 
 if not CENSUS_API_KEY:
@@ -27,7 +27,7 @@ logger.info(f"Using Census API Key: {CENSUS_API_KEY[:5]}...")
 class CensusAPI:
     """Class to handle Census API interactions"""
     def __init__(self, api_key: str = CENSUS_API_KEY, base_url: str = CENSUS_API_BASE_URL):
-        self.api_key = api_key
+        self.api_key = api_key.strip()
         self.base_url = base_url
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
