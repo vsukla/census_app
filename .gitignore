@@ -4,7 +4,23 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+venv/
+ENV/
+env/
+.env
+.env.docker
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual Environment
 develop-eggs/
 dist/
 downloads/
@@ -20,28 +36,9 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-ENV/
-env/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*.code-workspace
-
-# Environment variables
-.env
-
 # Logs
 *.log
 
 # Database
 *.db
-*.sqlite3
-
-# OS
-.DS_Store
-Thumbs.db 
+*.sqlite3 

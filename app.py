@@ -6,10 +6,8 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import logging
-from flask_talisman import Talisman
+from flask_cors import CORS
 import re
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,48 +23,52 @@ logger.info(f".env file exists: {os.path.exists('.env')}")
 logger.info(f"CENSUS_API_KEY length: {len(os.getenv('CENSUS_API_KEY', ''))}")
 
 app = Flask(__name__)
+app.config['DEBUG'] = True
 
-# Configure Content Security Policy
-csp = {
-    'default-src': "'self'",
-    'img-src': ["'self'", 'data:'],
-    'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
-    'style-src': ["'self'", "'unsafe-inline'"],
-}
+# Initialize CORS
+CORS(app)
 
-# Initialize Talisman with security headers
-talisman = Talisman(
-    app,
-    force_https=False,  # Disable HTTPS forcing for development
-    strict_transport_security=False,  # Disable HSTS for development
-    session_cookie_secure=False,  # Disable secure cookies for development
-    content_security_policy=csp,
-    feature_policy={
-        'geolocation': "'none'",
-        'microphone': "'none'",
-        'camera': "'none'"
-    }
-)
+@app.before_request
+def log_request_info():
+    logger.debug('Headers: %s', dict(request.headers))
+    logger.debug('Body: %s', request.get_data())
+    logger.debug('Method: %s', request.method)
+    logger.debug('Path: %s', request.path)
 
-# Initialize rate limiter
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
-)
+@app.errorhandler(403)
+def forbidden_error(error):
+    logger.error('403 error: %s', error)
+    return jsonify({
+        'error': 'Forbidden',
+        'message': str(error),
+        'status_code': 403
+    }), 403
 
-# Add security headers to all responses
-@app.after_request
-def add_security_headers(response):
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    return response
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error('500 error: %s', error)
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': str(error),
+        'status_code': 500
+    }), 500
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    logger.error('Unhandled exception: %s', error)
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': str(error),
+        'status_code': 500
+    }), 500
 
 # Census API configuration
-CENSUS_API_KEY = os.getenv('CENSUS_API_KEY', 'fb7093b063c3f9e8edead5e521875ec92fa40f11')
-CENSUS_API_BASE_URL = "https://api.census.gov/data/2020/acs/acs5"  # Changed to ACS5 endpoint
+CENSUS_API_KEY = os.getenv('CENSUS_API_KEY')
+if not CENSUS_API_KEY:
+    logger.error("CENSUS_API_KEY environment variable is not set")
+    raise ValueError("CENSUS_API_KEY environment variable is required")
+
+CENSUS_API_BASE_URL = "https://api.census.gov/data/2020/acs/acs5"
 
 logger.info(f"Using Census API Key: {CENSUS_API_KEY[:5]}...")
 
@@ -74,42 +76,76 @@ logger.info(f"Using Census API Key: {CENSUS_API_KEY[:5]}...")
 def get_state_data(state_code):
     """Fetch and cache state demographic data from Census API"""
     try:
-        if not CENSUS_API_KEY:
-            return {"error": "Please check your Census API key configuration"}, 400
-
         # Test API connection with a simple query first
         test_url = f"{CENSUS_API_BASE_URL}?get=NAME&for=state:{state_code}&key={CENSUS_API_KEY}"
         logger.debug(f"Testing API connection with URL: {test_url}")
-        test_response = requests.get(test_url)
+        
+        # Add headers to mimic a browser request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9'
+        }
+        
+        test_response = requests.get(test_url, headers=headers, allow_redirects=True)
+        
+        # Log the full response for debugging
+        logger.debug(f"Test response status: {test_response.status_code}")
+        logger.debug(f"Test response headers: {dict(test_response.headers)}")
+        logger.debug(f"Test response content: {test_response.text[:500]}")  # First 500 chars
         
         if test_response.status_code == 403:
             logger.error(f"API Key error. Status code: {test_response.status_code}")
             logger.error(f"Response: {test_response.text}")
-            return {"error": "Please check your Census API key configuration"}, 400
+            return {"error": "Invalid Census API key. Please check your configuration."}, 400
         
         if test_response.status_code != 200:
             logger.error(f"API request failed. Status code: {test_response.status_code}")
             logger.error(f"Response: {test_response.text}")
             return {"error": f"API request failed with status code {test_response.status_code}"}, 400
 
+        # Parse the test response
+        try:
+            test_data = test_response.json()
+            if not isinstance(test_data, list) or len(test_data) < 2:
+                logger.error(f"Invalid response format: {test_data}")
+                return {"error": "Invalid response format from Census API"}, 400
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            logger.error(f"Response content: {test_response.text}")
+            return {"error": "Failed to parse Census API response"}, 400
+
         # Total population (B01003_001E)
         total_pop_url = f"{CENSUS_API_BASE_URL}?get=B01003_001E&for=state:{state_code}&key={CENSUS_API_KEY}"
         logger.debug(f"Fetching total population from: {total_pop_url}")
-        total_pop_response = requests.get(total_pop_url)
+        total_pop_response = requests.get(total_pop_url, headers=headers, allow_redirects=True)
+        
+        # Log the full response for debugging
+        logger.debug(f"Total pop response status: {total_pop_response.status_code}")
+        logger.debug(f"Total pop response headers: {dict(total_pop_response.headers)}")
+        logger.debug(f"Total pop response content: {total_pop_response.text[:500]}")  # First 500 chars
         
         if total_pop_response.status_code != 200:
             logger.error(f"Population data request failed. Status code: {total_pop_response.status_code}")
             logger.error(f"Response: {total_pop_response.text}")
             return {"error": f"Failed to fetch population data"}, 400
             
-        total_pop_data = total_pop_response.json()
-        total_population = int(total_pop_data[1][0])
-        logger.debug(f"Total population for state {state_code}: {total_population}")
+        try:
+            total_pop_data = total_pop_response.json()
+            if not isinstance(total_pop_data, list) or len(total_pop_data) < 2:
+                logger.error(f"Invalid population data format: {total_pop_data}")
+                return {"error": "Invalid population data format from Census API"}, 400
+            total_population = int(total_pop_data[1][0])
+            logger.debug(f"Total population for state {state_code}: {total_population}")
+        except (json.JSONDecodeError, IndexError, ValueError) as e:
+            logger.error(f"Failed to parse population data: {e}")
+            logger.error(f"Response content: {total_pop_response.text}")
+            return {"error": "Failed to parse population data"}, 400
 
         # Race distribution (using ACS estimates)
         race_url = f"{CENSUS_API_BASE_URL}?get=B02001_002E,B02001_003E,B02001_004E,B02001_005E,B02001_006E&for=state:{state_code}&key={CENSUS_API_KEY}"
         logger.debug(f"Fetching race distribution from: {race_url}")
-        race_response = requests.get(race_url)
+        race_response = requests.get(race_url, headers=headers, allow_redirects=True)
         
         if race_response.status_code != 200:
             logger.error(f"Race data request failed. Status code: {race_response.status_code}")
@@ -128,7 +164,7 @@ def get_state_data(state_code):
 
         # Hispanic/Latino ethnicity (B03003)
         ethnicity_url = f"{CENSUS_API_BASE_URL}?get=B03003_002E,B03003_003E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        ethnicity_response = requests.get(ethnicity_url)
+        ethnicity_response = requests.get(ethnicity_url, headers=headers, allow_redirects=True)
         
         if ethnicity_response.status_code != 200:
             logger.error(f"Ethnicity data request failed. Status code: {ethnicity_response.status_code}")
@@ -144,7 +180,7 @@ def get_state_data(state_code):
 
         # Voting age population (B05003_001E)
         voting_age_url = f"{CENSUS_API_BASE_URL}?get=B05003_001E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        voting_age_response = requests.get(voting_age_url)
+        voting_age_response = requests.get(voting_age_url, headers=headers, allow_redirects=True)
         
         if voting_age_response.status_code != 200:
             logger.error(f"Voting age data request failed. Status code: {voting_age_response.status_code}")
@@ -155,7 +191,7 @@ def get_state_data(state_code):
 
         # Median age (B01002_001E)
         median_age_url = f"{CENSUS_API_BASE_URL}?get=B01002_001E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        median_age_response = requests.get(median_age_url)
+        median_age_response = requests.get(median_age_url, headers=headers, allow_redirects=True)
         
         if median_age_response.status_code != 200:
             logger.error(f"Median age data request failed. Status code: {median_age_response.status_code}")
@@ -164,52 +200,24 @@ def get_state_data(state_code):
         median_age_data = median_age_response.json()
         median_age = float(median_age_data[1][0])
 
-        # Population density calculation
-        state_areas = {
-            "01": 52420, "02": 665384, "04": 113990, "05": 53179, "06": 163696,
-            "08": 104094, "09": 5543, "10": 1982, "12": 65758, "13": 59425,
-            "15": 10932, "16": 83569, "17": 57914, "18": 36420, "19": 56273,
-            "20": 82278, "21": 40408, "22": 52378, "23": 35380, "24": 12407,
-            "25": 10554, "26": 96714, "27": 86936, "28": 48432, "29": 69707,
-            "30": 147040, "31": 77348, "32": 110572, "33": 9349, "34": 8722,
-            "35": 121590, "36": 54555, "37": 53819, "38": 70698, "39": 44826,
-            "40": 69899, "41": 98379, "42": 46054, "44": 1545, "45": 32020,
-            "46": 77116, "47": 42144, "48": 268597, "49": 84897, "50": 9616,
-            "51": 42775, "53": 71298, "54": 24230, "55": 65496, "56": 97813
-        }
-        
-        population_density = total_population / state_areas.get(state_code, 1)
-
-        # Historical population trends (simulated data for demonstration)
-        current_year = datetime.now().year
-        years = list(range(current_year - 10, current_year + 1))
-        base_population = total_population * 0.9
-        growth_rate = 0.01
-        population_growth = [
-            int(base_population * (1 + growth_rate) ** (year - (current_year - 10)))
-            for year in years
-        ]
-
+        # Return combined data
         return {
+            "state_code": state_code,
+            "state_name": test_data[1][0],
             "total_population": total_population,
             "race_distribution": race_distribution,
             "ethnicity_distribution": ethnicity_distribution,
             "voting_age_population": voting_age_population,
-            "median_age": median_age,
-            "population_density": population_density,
-            "trends": {
-                "years": years,
-                "population_growth": population_growth
-            }
+            "median_age": median_age
         }
 
     except Exception as e:
-        logger.error(f"Request exception: {str(e)}")
-        return {"error": f"API request failed: {str(e)}"}, 500
+        logger.error(f"Error fetching data for state {state_code}: {str(e)}")
+        return {"error": f"Failed to fetch data: {str(e)}"}, 500
 
 @app.route('/')
 def index():
-    # List of US states with their FIPS codes
+    """Render the main page"""
     states = [
         {"code": "01", "name": "Alabama"}, {"code": "02", "name": "Alaska"},
         {"code": "04", "name": "Arizona"}, {"code": "05", "name": "Arkansas"},
@@ -239,24 +247,31 @@ def index():
     ]
     return render_template('index.html', states=states)
 
-@app.route('/api/state/<state_code>')
+@app.route('/api/state/<state_code>', methods=['GET'])
 def get_state_api(state_code):
     """API endpoint to get state demographic data"""
     try:
+        logger.debug(f"Received request for state code: {state_code}")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        logger.debug(f"Request method: {request.method}")
+        
         # Validate state code format
         if not re.match(r'^[0-9]{2}$', state_code):
+            logger.error(f"Invalid state code format: {state_code}")
             return jsonify({"error": "Invalid state code format"}), 400
 
         data = get_state_data(state_code)
         
-        if "error" in data:
-            logger.error(f"Error fetching data for state {state_code}: {data['error']}")
-            return jsonify(data), 400
+        if isinstance(data, tuple) and len(data) == 2:
+            logger.error(f"Error fetching data for state {state_code}: {data[0]}")
+            return jsonify(data[0]), data[1]
             
+        logger.debug(f"Successfully fetched data for state {state_code}")
         return jsonify(data)
+        
     except Exception as e:
-        logger.error(f"Error processing request: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
+        logger.error(f"Error in API endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5001, debug=True) 

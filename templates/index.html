@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>US Voter Demographics & Political Insights</title>
+    <title>US State Demographics</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>US Voter Demographics & Political Insights</h1>
-            <p>Explore demographic data and political trends across states</p>
+            <h1>US State Demographics</h1>
+            <p>Explore demographic data across states</p>
         </header>
 
         <main>
@@ -46,13 +46,6 @@
                     <h2>Ethnicity Distribution</h2>
                     <div class="chart-container">
                         <canvas id="ethnicityChart"></canvas>
-                    </div>
-                </div>
-
-                <div id="trends-card" class="results-card">
-                    <h2>Demographic Trends</h2>
-                    <div class="chart-container">
-                        <canvas id="trendsChart"></canvas>
                     </div>
                 </div>
             </section>
