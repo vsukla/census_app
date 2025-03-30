@@ -165,59 +165,7 @@ def get_state_data(state_code):
 @app.route('/')
 def index():
     """Render the main page"""
-    states = [
-        {"code": "01", "name": "Alabama"},
-        {"code": "02", "name": "Alaska"},
-        {"code": "03", "name": "Arizona"},
-        {"code": "04", "name": "Arkansas"},
-        {"code": "05", "name": "California"},
-        {"code": "06", "name": "Colorado"},
-        {"code": "07", "name": "Connecticut"},
-        {"code": "08", "name": "Delaware"},
-        {"code": "09", "name": "Florida"},
-        {"code": "10", "name": "Georgia"},
-        {"code": "11", "name": "Hawaii"},
-        {"code": "12", "name": "Idaho"},
-        {"code": "13", "name": "Illinois"},
-        {"code": "14", "name": "Indiana"},
-        {"code": "15", "name": "Iowa"},
-        {"code": "16", "name": "Kansas"},
-        {"code": "17", "name": "Kentucky"},
-        {"code": "18", "name": "Louisiana"},
-        {"code": "19", "name": "Maine"},
-        {"code": "20", "name": "Maryland"},
-        {"code": "21", "name": "Massachusetts"},
-        {"code": "22", "name": "Michigan"},
-        {"code": "23", "name": "Minnesota"},
-        {"code": "24", "name": "Mississippi"},
-        {"code": "25", "name": "Missouri"},
-        {"code": "26", "name": "Montana"},
-        {"code": "27", "name": "Nebraska"},
-        {"code": "28", "name": "Nevada"},
-        {"code": "29", "name": "New Hampshire"},
-        {"code": "30", "name": "New Jersey"},
-        {"code": "31", "name": "New Mexico"},
-        {"code": "32", "name": "New York"},
-        {"code": "33", "name": "North Carolina"},
-        {"code": "34", "name": "North Dakota"},
-        {"code": "35", "name": "Ohio"},
-        {"code": "36", "name": "Oklahoma"},
-        {"code": "37", "name": "Oregon"},
-        {"code": "38", "name": "Pennsylvania"},
-        {"code": "39", "name": "Rhode Island"},
-        {"code": "40", "name": "South Carolina"},
-        {"code": "41", "name": "South Dakota"},
-        {"code": "42", "name": "Tennessee"},
-        {"code": "43", "name": "Texas"},
-        {"code": "44", "name": "Utah"},
-        {"code": "45", "name": "Vermont"},
-        {"code": "46", "name": "Virginia"},
-        {"code": "47", "name": "Washington"},
-        {"code": "48", "name": "West Virginia"},
-        {"code": "49", "name": "Wisconsin"},
-        {"code": "50", "name": "Wyoming"}
-    ]
-    return render_template('index.html', states=states)
+    return render_template('index.html')
 
 @app.route('/api/state/<state_code>', methods=['GET'])
 def get_state_api(state_code):
