@@ -1,13 +1,17 @@
+# Flask and extensions
 from flask import Flask, render_template, jsonify, request
+from flask_cors import CORS
+
+# Standard library
+import json
+import logging
+import os
+import re
 import requests
 from functools import lru_cache
-import json
-from datetime import datetime, timedelta
-import os
+
+# Third-party
 from dotenv import load_dotenv
-import logging
-from flask_cors import CORS
-import re
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -162,31 +166,56 @@ def get_state_data(state_code):
 def index():
     """Render the main page"""
     states = [
-        {"code": "01", "name": "Alabama"}, {"code": "02", "name": "Alaska"},
-        {"code": "04", "name": "Arizona"}, {"code": "05", "name": "Arkansas"},
-        {"code": "06", "name": "California"}, {"code": "08", "name": "Colorado"},
-        {"code": "09", "name": "Connecticut"}, {"code": "10", "name": "Delaware"},
-        {"code": "12", "name": "Florida"}, {"code": "13", "name": "Georgia"},
-        {"code": "15", "name": "Hawaii"}, {"code": "16", "name": "Idaho"},
-        {"code": "17", "name": "Illinois"}, {"code": "18", "name": "Indiana"},
-        {"code": "19", "name": "Iowa"}, {"code": "20", "name": "Kansas"},
-        {"code": "21", "name": "Kentucky"}, {"code": "22", "name": "Louisiana"},
-        {"code": "23", "name": "Maine"}, {"code": "24", "name": "Maryland"},
-        {"code": "25", "name": "Massachusetts"}, {"code": "26", "name": "Michigan"},
-        {"code": "27", "name": "Minnesota"}, {"code": "28", "name": "Mississippi"},
-        {"code": "29", "name": "Missouri"}, {"code": "30", "name": "Montana"},
-        {"code": "31", "name": "Nebraska"}, {"code": "32", "name": "Nevada"},
-        {"code": "33", "name": "New Hampshire"}, {"code": "34", "name": "New Jersey"},
-        {"code": "35", "name": "New Mexico"}, {"code": "36", "name": "New York"},
-        {"code": "37", "name": "North Carolina"}, {"code": "38", "name": "North Dakota"},
-        {"code": "39", "name": "Ohio"}, {"code": "40", "name": "Oklahoma"},
-        {"code": "41", "name": "Oregon"}, {"code": "42", "name": "Pennsylvania"},
-        {"code": "44", "name": "Rhode Island"}, {"code": "45", "name": "South Carolina"},
-        {"code": "46", "name": "South Dakota"}, {"code": "47", "name": "Tennessee"},
-        {"code": "48", "name": "Texas"}, {"code": "49", "name": "Utah"},
-        {"code": "50", "name": "Vermont"}, {"code": "51", "name": "Virginia"},
-        {"code": "53", "name": "Washington"}, {"code": "54", "name": "West Virginia"},
-        {"code": "55", "name": "Wisconsin"}, {"code": "56", "name": "Wyoming"}
+        {"code": "01", "name": "Alabama"},
+        {"code": "02", "name": "Alaska"},
+        {"code": "03", "name": "Arizona"},
+        {"code": "04", "name": "Arkansas"},
+        {"code": "05", "name": "California"},
+        {"code": "06", "name": "Colorado"},
+        {"code": "07", "name": "Connecticut"},
+        {"code": "08", "name": "Delaware"},
+        {"code": "09", "name": "Florida"},
+        {"code": "10", "name": "Georgia"},
+        {"code": "11", "name": "Hawaii"},
+        {"code": "12", "name": "Idaho"},
+        {"code": "13", "name": "Illinois"},
+        {"code": "14", "name": "Indiana"},
+        {"code": "15", "name": "Iowa"},
+        {"code": "16", "name": "Kansas"},
+        {"code": "17", "name": "Kentucky"},
+        {"code": "18", "name": "Louisiana"},
+        {"code": "19", "name": "Maine"},
+        {"code": "20", "name": "Maryland"},
+        {"code": "21", "name": "Massachusetts"},
+        {"code": "22", "name": "Michigan"},
+        {"code": "23", "name": "Minnesota"},
+        {"code": "24", "name": "Mississippi"},
+        {"code": "25", "name": "Missouri"},
+        {"code": "26", "name": "Montana"},
+        {"code": "27", "name": "Nebraska"},
+        {"code": "28", "name": "Nevada"},
+        {"code": "29", "name": "New Hampshire"},
+        {"code": "30", "name": "New Jersey"},
+        {"code": "31", "name": "New Mexico"},
+        {"code": "32", "name": "New York"},
+        {"code": "33", "name": "North Carolina"},
+        {"code": "34", "name": "North Dakota"},
+        {"code": "35", "name": "Ohio"},
+        {"code": "36", "name": "Oklahoma"},
+        {"code": "37", "name": "Oregon"},
+        {"code": "38", "name": "Pennsylvania"},
+        {"code": "39", "name": "Rhode Island"},
+        {"code": "40", "name": "South Carolina"},
+        {"code": "41", "name": "South Dakota"},
+        {"code": "42", "name": "Tennessee"},
+        {"code": "43", "name": "Texas"},
+        {"code": "44", "name": "Utah"},
+        {"code": "45", "name": "Vermont"},
+        {"code": "46", "name": "Virginia"},
+        {"code": "47", "name": "Washington"},
+        {"code": "48", "name": "West Virginia"},
+        {"code": "49", "name": "Wisconsin"},
+        {"code": "50", "name": "Wyoming"}
     ]
     return render_template('index.html', states=states)
 
