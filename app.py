@@ -6,7 +6,6 @@ from flask_limiter.util import get_remote_address
 
 # Standard library
 import logging
-import os
 import re
 import argparse
 
@@ -17,26 +16,19 @@ from api.census_api import census_api
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Initialize Flask app
 app = Flask(__name__)
 app.config['DEBUG'] = True
 
-# Initialize CORS
+# Initialize extensions
 CORS(app)
-
-# Initialize rate limiter
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
 
-@app.before_request
-def log_request_info():
-    logger.debug('Headers: %s', dict(request.headers))
-    logger.debug('Body: %s', request.get_data())
-    logger.debug('Method: %s', request.method)
-    logger.debug('Path: %s', request.path)
-
+# Error handlers
 @app.errorhandler(403)
 def forbidden_error(error):
     logger.error('403 error: %s', error)
@@ -64,6 +56,15 @@ def handle_exception(error):
         'status_code': 500
     }), 500
 
+# Request logging middleware
+@app.before_request
+def log_request_info():
+    logger.debug('Headers: %s', dict(request.headers))
+    logger.debug('Body: %s', request.get_data())
+    logger.debug('Method: %s', request.method)
+    logger.debug('Path: %s', request.path)
+
+# Route handlers
 @app.route('/')
 def index():
     """Render the main page"""
@@ -82,6 +83,7 @@ def get_state_api(state_code):
     
     return jsonify(state_data.to_dict())
 
+# Application entry point
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the Census App')
     parser.add_argument('--port', type=int, default=5001, help='Port to run the application on (default: 5001)')
