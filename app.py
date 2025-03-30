@@ -76,140 +76,83 @@ logger.info(f"Using Census API Key: {CENSUS_API_KEY[:5]}...")
 def get_state_data(state_code):
     """Fetch and cache state demographic data from Census API"""
     try:
-        # Test API connection with a simple query first
-        test_url = f"{CENSUS_API_BASE_URL}?get=NAME&for=state:{state_code}&key={CENSUS_API_KEY}"
-        logger.debug(f"Testing API connection with URL: {test_url}")
+        # Combine all variables into a single API call
+        variables = [
+            'NAME',                    # State name
+            'B01003_001E',            # Total population
+            'B02001_002E',            # White alone
+            'B02001_003E',            # Black or African American alone
+            'B02001_004E',            # American Indian and Alaska Native alone
+            'B02001_005E',            # Asian alone
+            'B02001_006E',            # Native Hawaiian and Other Pacific Islander alone
+            'B03003_002E',            # Hispanic or Latino
+            'B03003_003E',            # Not Hispanic or Latino
+            'B05003_001E',            # Voting age population
+            'B01002_001E'             # Median age
+        ]
         
-        # Add headers to mimic a browser request
+        url = f"{CENSUS_API_BASE_URL}?get={','.join(variables)}&for=state:{state_code}&key={CENSUS_API_KEY}"
+        logger.debug(f"Fetching all data in one call from: {url}")
+        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'application/json',
             'Accept-Language': 'en-US,en;q=0.9'
         }
         
-        test_response = requests.get(test_url, headers=headers, allow_redirects=True)
+        response = requests.get(url, headers=headers, allow_redirects=True)
         
-        # Log the full response for debugging
-        logger.debug(f"Test response status: {test_response.status_code}")
-        logger.debug(f"Test response headers: {dict(test_response.headers)}")
-        logger.debug(f"Test response content: {test_response.text[:500]}")  # First 500 chars
+        # Log response details
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response headers: {dict(response.headers)}")
+        logger.debug(f"Response content: {response.text[:500]}")  # First 500 chars
         
-        if test_response.status_code == 403:
-            logger.error(f"API Key error. Status code: {test_response.status_code}")
-            logger.error(f"Response: {test_response.text}")
+        if response.status_code == 403:
+            logger.error(f"API Key error. Status code: {response.status_code}")
+            logger.error(f"Response: {response.text}")
             return {"error": "Invalid Census API key. Please check your configuration."}, 400
         
-        if test_response.status_code != 200:
-            logger.error(f"API request failed. Status code: {test_response.status_code}")
-            logger.error(f"Response: {test_response.text}")
-            return {"error": f"API request failed with status code {test_response.status_code}"}, 400
+        if response.status_code != 200:
+            logger.error(f"API request failed. Status code: {response.status_code}")
+            logger.error(f"Response: {response.text}")
+            return {"error": f"API request failed with status code {response.status_code}"}, 400
 
-        # Parse the test response
         try:
-            test_data = test_response.json()
-            if not isinstance(test_data, list) or len(test_data) < 2:
-                logger.error(f"Invalid response format: {test_data}")
+            data = response.json()
+            if not isinstance(data, list) or len(data) < 2:
+                logger.error(f"Invalid response format: {data}")
                 return {"error": "Invalid response format from Census API"}, 400
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response: {e}")
-            logger.error(f"Response content: {test_response.text}")
-            return {"error": "Failed to parse Census API response"}, 400
-
-        # Total population (B01003_001E)
-        total_pop_url = f"{CENSUS_API_BASE_URL}?get=B01003_001E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        logger.debug(f"Fetching total population from: {total_pop_url}")
-        total_pop_response = requests.get(total_pop_url, headers=headers, allow_redirects=True)
-        
-        # Log the full response for debugging
-        logger.debug(f"Total pop response status: {total_pop_response.status_code}")
-        logger.debug(f"Total pop response headers: {dict(total_pop_response.headers)}")
-        logger.debug(f"Total pop response content: {total_pop_response.text[:500]}")  # First 500 chars
-        
-        if total_pop_response.status_code != 200:
-            logger.error(f"Population data request failed. Status code: {total_pop_response.status_code}")
-            logger.error(f"Response: {total_pop_response.text}")
-            return {"error": f"Failed to fetch population data"}, 400
             
-        try:
-            total_pop_data = total_pop_response.json()
-            if not isinstance(total_pop_data, list) or len(total_pop_data) < 2:
-                logger.error(f"Invalid population data format: {total_pop_data}")
-                return {"error": "Invalid population data format from Census API"}, 400
-            total_population = int(total_pop_data[1][0])
-            logger.debug(f"Total population for state {state_code}: {total_population}")
+            # Extract data from the single response
+            row = data[1]  # First row contains headers, second row contains values
+            
+            # Calculate total for ethnicity percentages
+            total_ethnicity = int(row[7]) + int(row[8])  # Hispanic + Non-Hispanic
+            
+            # Prepare the response
+            return {
+                "state_code": state_code,
+                "state_name": row[0],
+                "total_population": int(row[1]),
+                "race_distribution": {
+                    "White": int(row[2]),
+                    "Black": int(row[3]),
+                    "American Indian": int(row[4]),
+                    "Asian": int(row[5]),
+                    "Other": int(row[6])
+                },
+                "ethnicity_distribution": {
+                    "Hispanic": round((int(row[7]) / total_ethnicity) * 100, 1),
+                    "Non-Hispanic": round((int(row[8]) / total_ethnicity) * 100, 1)
+                },
+                "voting_age_population": int(row[9]),
+                "median_age": float(row[10])
+            }
+            
         except (json.JSONDecodeError, IndexError, ValueError) as e:
-            logger.error(f"Failed to parse population data: {e}")
-            logger.error(f"Response content: {total_pop_response.text}")
-            return {"error": "Failed to parse population data"}, 400
-
-        # Race distribution (using ACS estimates)
-        race_url = f"{CENSUS_API_BASE_URL}?get=B02001_002E,B02001_003E,B02001_004E,B02001_005E,B02001_006E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        logger.debug(f"Fetching race distribution from: {race_url}")
-        race_response = requests.get(race_url, headers=headers, allow_redirects=True)
-        
-        if race_response.status_code != 200:
-            logger.error(f"Race data request failed. Status code: {race_response.status_code}")
-            return {"error": f"Failed to fetch race data"}, 400
-            
-        race_data = race_response.json()
-        
-        race_distribution = {
-            "White": int(race_data[1][0]),
-            "Black": int(race_data[1][1]),
-            "American Indian": int(race_data[1][2]),
-            "Asian": int(race_data[1][3]),
-            "Other": int(race_data[1][4])
-        }
-        logger.debug(f"Race distribution for state {state_code}: {race_distribution}")
-
-        # Hispanic/Latino ethnicity (B03003)
-        ethnicity_url = f"{CENSUS_API_BASE_URL}?get=B03003_002E,B03003_003E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        ethnicity_response = requests.get(ethnicity_url, headers=headers, allow_redirects=True)
-        
-        if ethnicity_response.status_code != 200:
-            logger.error(f"Ethnicity data request failed. Status code: {ethnicity_response.status_code}")
-            return {"error": f"Failed to fetch ethnicity data"}, 400
-            
-        ethnicity_data = ethnicity_response.json()
-        
-        total = int(ethnicity_data[1][0]) + int(ethnicity_data[1][1])
-        ethnicity_distribution = {
-            "Hispanic": round((int(ethnicity_data[1][0]) / total) * 100, 1),
-            "Non-Hispanic": round((int(ethnicity_data[1][1]) / total) * 100, 1)
-        }
-
-        # Voting age population (B05003_001E)
-        voting_age_url = f"{CENSUS_API_BASE_URL}?get=B05003_001E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        voting_age_response = requests.get(voting_age_url, headers=headers, allow_redirects=True)
-        
-        if voting_age_response.status_code != 200:
-            logger.error(f"Voting age data request failed. Status code: {voting_age_response.status_code}")
-            return {"error": f"Failed to fetch voting age data"}, 400
-            
-        voting_age_data = voting_age_response.json()
-        voting_age_population = int(voting_age_data[1][0])
-
-        # Median age (B01002_001E)
-        median_age_url = f"{CENSUS_API_BASE_URL}?get=B01002_001E&for=state:{state_code}&key={CENSUS_API_KEY}"
-        median_age_response = requests.get(median_age_url, headers=headers, allow_redirects=True)
-        
-        if median_age_response.status_code != 200:
-            logger.error(f"Median age data request failed. Status code: {median_age_response.status_code}")
-            return {"error": f"Failed to fetch median age data"}, 400
-            
-        median_age_data = median_age_response.json()
-        median_age = float(median_age_data[1][0])
-
-        # Return combined data
-        return {
-            "state_code": state_code,
-            "state_name": test_data[1][0],
-            "total_population": total_population,
-            "race_distribution": race_distribution,
-            "ethnicity_distribution": ethnicity_distribution,
-            "voting_age_population": voting_age_population,
-            "median_age": median_age
-        }
+            logger.error(f"Failed to parse response data: {e}")
+            logger.error(f"Response content: {response.text}")
+            return {"error": "Failed to parse Census API response"}, 400
 
     except Exception as e:
         logger.error(f"Error fetching data for state {state_code}: {str(e)}")
