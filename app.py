@@ -19,7 +19,7 @@ from typing import Dict, Optional, Tuple, Any
 from dotenv import load_dotenv
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Load environment variables
@@ -46,7 +46,7 @@ limiter = Limiter(
 
 # Census API configuration
 CENSUS_API_KEY = os.getenv('CENSUS_API_KEY')
-CENSUS_API_BASE_URL = 'https://api.census.gov/data/2020/dec/pl'
+CENSUS_API_BASE_URL = 'https://api.census.gov/data/2020/acs/acs5'
 
 if not CENSUS_API_KEY:
     logger.error("CENSUS_API_KEY environment variable is not set")
@@ -90,6 +90,7 @@ class CensusAPI:
 
     def make_request(self, url: str) -> Tuple[Optional[list], Optional[Dict[str, str]], Optional[int]]:
         """Make a request to the Census API with proper headers and error handling"""
+        logger.debug(f"Making request to URL: {url}")
         response = requests.get(url, headers=self.headers, allow_redirects=True)
         
         # Log response details
@@ -105,7 +106,12 @@ class CensusAPI:
         if response.status_code != 200:
             logger.error(f"API request failed. Status code: {response.status_code}")
             logger.error(f"Response: {response.text}")
-            return None, {"error": f"API request failed with status code {response.status_code}"}, 400
+            try:
+                error_data = response.json()
+                error_message = error_data.get('message', 'Unknown error')
+            except:
+                error_message = response.text
+            return None, {"error": f"API request failed: {error_message}"}, response.status_code
 
         try:
             data = response.json()
