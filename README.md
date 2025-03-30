@@ -91,3 +91,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request 
+## Deployment
+
+This application can be deployed to any cloud platform that supports Python applications, such as:
+- Heroku
+- Google Cloud Platform
+- AWS Elastic Beanstalk
+- DigitalOcean App Platform
