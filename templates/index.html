@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Voter Demographics & Political Insights</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>US Voter Demographics & Political Insights</h1>
+            <p>Explore demographic data and political trends across states</p>
+        </header>
+
+        <main>
+            <section class="search-section">
+                <div class="state-selector">
+                    <label for="state">Select State:</label>
+                    <select id="state" name="state">
+                        <option value="">Choose a state...</option>
+                        {% for state in states %}
+                        <option value="{{ state.code }}">{{ state.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </section>
+
+            <section class="results-section">
+                <div id="demographics-card" class="results-card">
+                    <h2>Demographic Overview</h2>
+                    <div class="data-display">
+                        <p>Select a state to view demographic data</p>
+                    </div>
+                </div>
+
+                <div id="race-chart-card" class="results-card">
+                    <h2>Race Distribution</h2>
+                    <div class="chart-container">
+                        <canvas id="raceChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="ethnicity-chart-card" class="results-card">
+                    <h2>Ethnicity Distribution</h2>
+                    <div class="chart-container">
+                        <canvas id="ethnicityChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="trends-card" class="results-card">
+                    <h2>Demographic Trends</h2>
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Data source: US Census Bureau API</p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 
