@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import requests
+import argparse
 from functools import lru_cache
 
 # Third-party
@@ -194,4 +195,8 @@ def get_state_api(state_code):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True) 
+    parser = argparse.ArgumentParser(description='Run the Census App')
+    parser.add_argument('--port', type=int, default=5001, help='Port to run the application on (default: 5001)')
+    args = parser.parse_args()
+    
+    app.run(host='0.0.0.0', port=args.port, debug=True) 
