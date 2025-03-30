@@ -9,23 +9,13 @@ import logging
 import os
 import re
 import argparse
-from dotenv import load_dotenv
 
 # Third-party
-from api.census_api import CensusAPI
+from api.census_api import census_api
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
-
-# Debug environment variables
-logger.info("Environment variables:")
-logger.info(f"Current working directory: {os.getcwd()}")
-logger.info(f".env file exists: {os.path.exists('.env')}")
-logger.info(f"CENSUS_API_KEY length: {len(os.getenv('CENSUS_API_KEY', ''))}")
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
@@ -39,19 +29,6 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
-
-# Census API configuration
-CENSUS_API_KEY = os.getenv('CENSUS_API_KEY')
-CENSUS_API_BASE_URL = 'https://api.census.gov/data/2020/acs/acs5'
-
-if not CENSUS_API_KEY:
-    logger.error("CENSUS_API_KEY environment variable is not set")
-    raise ValueError("CENSUS_API_KEY environment variable is required")
-
-logger.info(f"Using Census API Key: {CENSUS_API_KEY[:5]}...")
-
-# Initialize Census API
-census_api = CensusAPI(CENSUS_API_KEY, CENSUS_API_BASE_URL)
 
 @app.before_request
 def log_request_info():

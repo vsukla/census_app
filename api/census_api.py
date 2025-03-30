@@ -1,15 +1,32 @@
 import json
 import logging
+import os
 import requests
 from functools import lru_cache
 from typing import Dict, Optional, Tuple, Any
+from dotenv import load_dotenv
 from .state_data import StateData
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# Census API configuration
+CENSUS_API_KEY = os.getenv('CENSUS_API_KEY')
+CENSUS_API_BASE_URL = 'https://api.census.gov/data/2020/acs/acs5'
+
+if not CENSUS_API_KEY:
+    logger.error("CENSUS_API_KEY environment variable is not set")
+    raise ValueError("CENSUS_API_KEY environment variable is required")
+
+logger.info(f"Using Census API Key: {CENSUS_API_KEY[:5]}...")
 
 class CensusAPI:
     """Class to handle Census API interactions"""
-    def __init__(self, api_key: str, base_url: str):
+    def __init__(self, api_key: str = CENSUS_API_KEY, base_url: str = CENSUS_API_BASE_URL):
         self.api_key = api_key
         self.base_url = base_url
         self.headers = {
@@ -110,4 +127,7 @@ class CensusAPI:
             
         except Exception as e:
             logger.error(f"Error fetching data for state {state_code}: {str(e)}")
-            return None, {"error": f"Failed to fetch data: {str(e)}"}, 500 
+            return None, {"error": f"Failed to fetch data: {str(e)}"}, 500
+
+# Create a default instance
+census_api = CensusAPI() 
